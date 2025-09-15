@@ -1,0 +1,14 @@
+🚀 INSTRUÇÕES PARA USAR O VASQUES-SCAN AI:
+
+1. INSTALE O NMAP:
+   → Baixe em: https://nmap.org/download.html
+   → Instale normalmente.
+
+2. INSTALE O OLLAMA:
+   → Baixe em: https://ollama.com/download
+   → Instale e execute no terminal:
+        ollama run llama3   (ou ollama run phi3 para versão mais rápida)
+
+3. EXECUTE O VASQUES-SCAN-AI.exe
+
+✅ PRONTO! Sua ferramenta de Hacker Ético com IA está ativa!
